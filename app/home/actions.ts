@@ -38,8 +38,6 @@ export async function addBookmark(formData: FormData) {
   })
 
   if (error) throw error
-
-  // Realtime subscription will automatically update the bookmark list
 }
 
 export async function updateBookmark(bookmarkId: string, formData: FormData) {
@@ -81,8 +79,6 @@ export async function updateBookmark(bookmarkId: string, formData: FormData) {
     .eq("user_id", user.id)
 
   if (error) throw error
-
-  // Realtime subscription will automatically update the bookmark list
 }
 
 export async function deleteBookmark(bookmarkId: string) {
@@ -104,6 +100,4 @@ export async function deleteBookmark(bookmarkId: string) {
     .eq("user_id", user.id)
 
   if (error) throw error
-
-  // Realtime subscription will automatically update the bookmark list
 }

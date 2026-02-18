@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
+import { NextResponse } from 'next/server'
 
 /**
  * GET /auth/login
@@ -24,24 +24,7 @@ export async function GET() {
   const cookieStore = await cookies()
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
 
-  // Accumulate every cookie Supabase wants to write during signInWithOAuth
-  const pendingCookies: { name: string; value: string; options: CookieOptions }[] = []
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          // Capture instead of writing to the implicit route-handler response
-          cookiesToSet.forEach((c) => pendingCookies.push(c))
-        },
-      },
-    }
-  )
+  const supabase = await createClient()
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -73,9 +56,6 @@ export async function GET() {
   // Build the redirect response and attach the PKCE code_verifier (and any
   // other cookies Supabase set) so the browser carries them to /auth/callback.
   const response = NextResponse.redirect(data.url)
-  pendingCookies.forEach(({ name, value, options }) => {
-    response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2])
-  })
 
   return response
 }

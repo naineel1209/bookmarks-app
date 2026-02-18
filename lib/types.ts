@@ -53,30 +53,6 @@ export type Database = {
         }
         Relationships: []
       }
-      categories: {
-        Row: {
-          color: string | null
-          created_at: string | null
-          id: string
-          name: string
-          user_id: string
-        }
-        Insert: {
-          color?: string | null
-          created_at?: string | null
-          id?: string
-          name: string
-          user_id: string
-        }
-        Update: {
-          color?: string | null
-          created_at?: string | null
-          id?: string
-          name?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       users: {
         Row: {
           avatar_url: string | null
@@ -249,7 +225,6 @@ export const Constants = {
   },
 } as const
 
-// Convenience type aliases derived from the generated Database types
+// Convenience type to extract the public schema from the Database type
 export type Bookmark = Tables<"bookmarks">
-export type Category = Tables<"categories">
 export type User = Tables<"users">

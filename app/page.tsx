@@ -1,3 +1,5 @@
+'use client'
+
 export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
@@ -15,8 +17,10 @@ export default function LoginPage() {
           <button
             className="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg px-6 py-3 font-medium hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm"
             onClick={() => {
-              // Will implement Supabase Google OAuth later
-              alert('Google Sign-In will be implemented with Supabase');
+              // Redirect to the server-side OAuth initiation route.
+              // That route calls supabase.auth.signInWithOAuth (PKCE) and
+              // forwards the browser to Google's consent screen.
+              window.location.href = '/auth/login'
             }}
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">

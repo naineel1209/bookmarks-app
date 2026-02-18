@@ -1,5 +1,5 @@
 import { createClient } from './server'
-import { Bookmark, Category, User } from '../types'
+import { Bookmark, User } from '../types'
 
 // Bookmark queries
 export async function getBookmarks(userId: string) {
@@ -65,58 +65,6 @@ export async function searchBookmarks(userId: string, query: string) {
 
   if (error) throw error
   return data as Bookmark[]
-}
-
-// Category queries
-export async function getCategories(userId: string) {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('categories')
-    .select('*')
-    .eq('user_id', userId)
-    .order('name')
-
-  if (error) throw error
-  return data as Category[]
-}
-
-export async function createCategory(userId: string, category: Omit<Category, 'id' | 'created_at'>) {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('categories')
-    .insert({ ...category, user_id: userId })
-    .select()
-    .single()
-
-  if (error) throw error
-  return data as Category
-}
-
-export async function updateCategory(id: string, updates: Partial<Omit<Category, 'id' | 'user_id' | 'created_at'>>) {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('categories')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) throw error
-  return data as Category
-}
-
-export async function deleteCategory(id: string) {
-  const supabase = await createClient()
-
-  const { error } = await supabase
-    .from('categories')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
 }
 
 // User queries

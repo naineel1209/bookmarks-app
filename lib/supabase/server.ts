@@ -1,3 +1,4 @@
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
@@ -32,4 +33,36 @@ export async function createClient() {
       },
     }
   )
+}
+
+/**
+ * Creates a Supabase admin client using the service-role key.
+ *
+ * IMPORTANT: This client bypasses Row Level Security entirely.
+ * Use it ONLY in server-side code (Route Handlers, Server Actions) and
+ * NEVER expose the service-role key to the browser.
+ *
+ * Prefer this over the SSR client when you need a reliable, privileged
+ * write to the database (e.g. upserting a user profile during OAuth
+ * callback) where schema-cache or RLS issues could otherwise block the
+ * anon/publishable key.
+ */
+export function createAdminClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error(
+      'Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables'
+    )
+  }
+
+  return createSupabaseClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      // Disable auto-refresh and session persistence; this is a short-lived
+      // server-side client that only needs the service-role JWT.
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient, createClient } from '@/lib/supabase/server'
 
 /**
  * GET /auth/callback
@@ -52,7 +52,16 @@ export async function GET(request: NextRequest) {
 
   // --- Upsert the user profile into the public users table ---
   // user_metadata from Google OAuth contains: full_name, avatar_url, email
-  const { error: upsertError } = await supabase
+  //
+  // We use the service-role admin client here instead of the SSR anon client so
+  // that the write is not blocked by:
+  //   • PostgREST schema-cache errors ("Could not query the database for the
+  //     schema cache") that can occur with the publishable key on cold starts
+  //     or after schema changes.
+  //   • Row Level Security: the admin client bypasses RLS, which means the
+  //     INSERT/UPDATE succeeds even before the user's JWT is fully propagated.
+  const adminClient = createAdminClient()
+  const { error: upsertError } = await adminClient
     .from('users')
     .upsert(
       {

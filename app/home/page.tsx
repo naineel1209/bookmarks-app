@@ -1,189 +1,189 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { logout } from '@/app/auth/logout/action'
+'use client'
+
+import { logout } from "@/app/auth/logout/action"
+import { Bookmark, BookMarked } from "lucide-react"
+import { redirect } from "next/navigation"
+import { useEffect, useState } from "react"
+
+import { AddBookmarkDialog } from "@/components/add-bookmark-dialog"
+import { BookmarkCard } from "@/components/bookmark-card"
+import { CategoriesSection } from "@/components/categories-section"
+import { useBookmarksSubscription } from "@/lib/hooks/useBookmarksSubscription"
+import { createClient } from "@/lib/supabase/client"
+import type { User } from "@/lib/types"
 
 /**
- * /home – protected page.
+ * /home – Client-side protected page with realtime bookmarks.
  *
- * Fetches the currently authenticated user server-side and logs all
- * available details to the server console.  The full user object is
- * also rendered on the page so it is easy to inspect during development.
+ * - Authenticates on mount using Supabase client
+ * - Fetches initial bookmarks for the user
+ * - Sets up realtime subscription to bookmark changes
+ * - Renders bookmarks in a responsive grid with live updates
+ * - Provides an "Add Bookmark" button that opens a shadcn Dialog
  */
-export default async function HomePage() {
-  const supabase = await createClient()
+export default function HomePage() {
+  const supabase = createClient()
+  const [user, setUser] = useState<User | null>(null)
 
-  // getUser() re-validates the session against Supabase on every request.
-  // Never use getSession() for trusted server-side auth checks.
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+  // Authenticate and set user
+  useEffect(() => {
+    async function checkAuth() {
+      const {
+        data: { user: authUser },
+        error,
+      } = await supabase.auth.getUser()
 
-  if (error || !user) {
-    // Middleware should have already redirected, but guard here as well.
-    redirect('/')
-  }
+      if (error || !authUser) {
+        redirect("/")
+      }
 
-  // ── Server-side logging ──────────────────────────────────────────────────
-  console.log('[home] Authenticated user details:')
-  console.log(JSON.stringify(user, null, 2))
-  // ────────────────────────────────────────────────────────────────────────
+      // Extract relevant user data from auth user
+      const userData: User = {
+        id: authUser.id,
+        email: authUser.email || "",
+        full_name: authUser.user_metadata?.full_name || null,
+        avatar_url: authUser.user_metadata?.avatar_url || null,
+        bio: null,
+        theme: null,
+        created_at: authUser.created_at || null,
+        updated_at: authUser.updated_at || null,
+      }
+
+      setUser(userData)
+    }
+
+    checkAuth()
+  }, [supabase])
+
+  // Use realtime subscription for bookmarks (handles fetch + sync)
+  const { bookmarks: bookmarkList, isLoading } =
+    useBookmarksSubscription()
+
+  const displayName = user
+    ? (user.full_name as string | undefined) ?? user.email
+    : "Loading..."
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+    <div className="min-h-screen bg-background">
+      {/* ── Sticky Header ─────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          {/* Brand */}
+          <div className="flex items-center gap-2.5">
+            <BookMarked className="h-6 w-6 text-primary" />
+            <span className="text-xl font-bold tracking-tight">
               My Bookmarks
-            </h1>
-            {/* Avatar + display name + logout */}
-            <div className="flex items-center gap-3">
-              {user.user_metadata?.avatar_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={user.user_metadata.avatar_url as string}
-                  alt="Avatar"
-                  width={36}
-                  height={36}
-                  referrerPolicy="no-referrer"
-                  className="rounded-full ring-2 ring-gray-200 dark:ring-gray-600"
-                />
-              )}
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                {(user.user_metadata?.full_name as string | undefined) ?? user.email}
-              </span>
-              <form action={logout}>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Logout
-                </button>
-              </form>
-            </div>
+            </span>
+          </div>
+
+          {/* User info + logout */}
+          <div className="flex items-center gap-3">
+            {user && user.avatar_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.avatar_url as string}
+                alt="Avatar"
+                width={34}
+                height={34}
+                referrerPolicy="no-referrer"
+                className="rounded-full ring-2 ring-border"
+              />
+            )}
+            <span className="hidden sm:block text-sm font-medium text-muted-foreground max-w-[200px] truncate">
+              {displayName}
+            </span>
+            <form action={logout}>
+              <button
+                type="submit"
+                className="text-sm font-medium px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                Logout
+              </button>
+            </form>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* ── User Debug Panel ─────────────────────────────────────────── */}
-        <section className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Authenticated User Details
-          </h2>
-
-          {/* Quick-glance fields */}
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 mb-6">
-            {[
-              { label: 'User ID', value: user.id },
-              { label: 'Email', value: user.email ?? '—' },
-              { label: 'Full Name', value: (user.user_metadata?.full_name as string | undefined) ?? '—' },
-              { label: 'Provider', value: user.app_metadata?.provider ?? '—' },
-              { label: 'Email confirmed', value: user.email_confirmed_at ? new Date(user.email_confirmed_at).toLocaleString() : 'No' },
-              { label: 'Last sign-in', value: user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : '—' },
-              { label: 'Created at', value: new Date(user.created_at).toLocaleString() },
-              { label: 'Role', value: user.role ?? '—' },
-            ].map(({ label, value }) => (
-              <div key={label}>
-                <dt className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  {label}
-                </dt>
-                <dd className="mt-0.5 text-sm text-gray-900 dark:text-white break-all">
-                  {value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-
-          {/* Raw JSON dump */}
-          <details>
-            <summary className="cursor-pointer text-sm text-blue-600 dark:text-blue-400 hover:underline select-none">
-              Show full user object (JSON)
-            </summary>
-            <pre className="mt-3 p-4 bg-gray-100 dark:bg-gray-900 rounded-lg text-xs overflow-auto max-h-96 text-gray-800 dark:text-gray-200">
-              {JSON.stringify(user, null, 2)}
-            </pre>
-          </details>
-        </section>
-
-        {/* ── Add Bookmark Form ─────────────────────────────────────────── */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Add New Bookmark
-          </h2>
-          <form className="space-y-4">
-            <div>
-              <label
-                htmlFor="url"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                URL
-              </label>
-              <input
-                type="url"
-                id="url"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                placeholder="https://example.com"
-                required
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="title"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Title
-              </label>
-              <input
-                type="text"
-                id="title"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                placeholder="My Favourite Website"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-            >
-              Add Bookmark
-            </button>
-          </form>
-        </div>
-
-        {/* ── Bookmarks List ────────────────────────────────────────────── */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Your Bookmarks
-          </h2>
-
-          {/* Empty State */}
-          <div className="text-center py-12">
-            <svg
-              className="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-              />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-              No bookmarks yet
-            </h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Get started by adding your first bookmark above.
+      {/* ── Page content ──────────────────────────────────────────────── */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+        {/* Hero / action bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Your Bookmarks
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              {bookmarkList.length === 0
+                ? "No bookmarks saved yet — add your first one!"
+                : `${bookmarkList.length} bookmark${bookmarkList.length !== 1 ? "s" : ""} saved`}
             </p>
           </div>
+
+          {/* Add Bookmark widget → opens Dialog */}
+          <AddBookmarkDialog />
         </div>
+
+        {/* ── Uncategorized Bookmarks grid / empty state ──────────────────────────── */}
+        {isLoading ? (
+          <LoadingState />
+        ) : bookmarkList.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <>
+            {/* Section for uncategorized bookmarks */}
+            {(() => {
+              const uncategorized = bookmarkList.filter((bm) => !bm.category)
+              if (uncategorized.length > 0) {
+                return (
+                  <section className="space-y-4">
+                    <h2 className="text-2xl font-bold tracking-tight">Bookmarks</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {uncategorized.map((bookmark) => (
+                        <BookmarkCard key={bookmark.id} bookmark={bookmark} />
+                      ))}
+                    </div>
+                  </section>
+                )
+              }
+              return null
+            })()}
+
+            {/* Categories Section */}
+            <CategoriesSection bookmarks={bookmarkList} />
+          </>
+        )}
       </main>
+    </div>
+  )
+}
+
+/* ── Loading State ──────────────────────────────────────────────────────── */
+function LoadingState() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="h-48 rounded-lg border bg-card animate-pulse"
+        />
+      ))}
+    </div>
+  )
+}
+
+/* ── Empty State ─────────────────────────────────────────────────────────── */
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 py-20 px-6 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
+        <Bookmark className="h-8 w-8 text-muted-foreground" />
+      </div>
+      <h3 className="text-lg font-semibold">No bookmarks yet</h3>
+      <p className="mt-1 text-sm text-muted-foreground max-w-xs">
+        Click <strong>Add Bookmark</strong> above to save your first link.
+        <br />
+        Your entire collection will appear here.
+      </p>
     </div>
   )
 }

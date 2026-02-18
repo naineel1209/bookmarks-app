@@ -131,7 +131,7 @@ The first solution considered was implementing a fixed interval polling mechanis
 
 #### Better Solution: Supabase Realtime
 
-After researching alternatives, I discovered **Supabase Realtime** — a feature that publishes events on Postgres database changes at the row level to all subscribed clients.
+After researching alternatives, I discovered **Supabase Realtime** a feature that publishes events on Postgres database changes at the row level to all subscribed clients.
 
 The implementation was straightforward, but there was a critical consideration: **we shouldn't listen to ALL database events**. Every user's bookmark changes would trigger events for all connected clients, creating noise and potential security concerns.
 
